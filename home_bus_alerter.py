@@ -1,7 +1,13 @@
 import logging
 import os
+import sys
+sys.path.append(os.getcwd())
 import datetime
-from requests_html import HTMLSession, HTML
+from selenium import webdriver
+from selenium.common.exceptions import TimeoutException
+from selenium.webdriver.support.ui import WebDriverWait
+from selenium.webdriver.support import expected_conditions as EC
+from selenium.webdriver.common.by import By
 import time
 from typing import List
 
@@ -19,15 +25,19 @@ class LineData(object):
 class HomeBusAlerter(object):
     def __init__(self):
         self._logger = logging.getLogger(self.__class__.__name__)
-        #self._session = None
+        self._driver = webdriver.Firefox()
 
     def get_data_from_bus_station_num(self, bus_station_num: int, line_filter=[]):
         self._logger.info('trying to get data on station no: {}'.format(bus_station_num))
-        s = HTMLSession()
-        r = s.get('https://mslworld.egged.co.il/?language=en#/realtime/1/0/2/{}'.format(bus_station_num))
-        r.html.render()
-        data = self._parse_egged_rendered_data(rendered_html=r.html)
-        s.close()
+        url = 'https://bus.gov.il/?language=en#/realtime/1/0/2/{}'.format(bus_station_num)
+        if self._driver.current_url != url:
+            self._driver.get(url)
+        else:
+            self._driver.refresh()
+        self._wait_for_class(class_name='TableLines', timeout_s=5)
+        time.sleep(1)  # additional
+
+        data = self._parse_rendered_data()
         try:
             if len(data) > 0:
                 if len(line_filter) > 0:
@@ -38,24 +48,32 @@ class HomeBusAlerter(object):
                     return filtered_data
                 else:
                     return data
-            else: # data empty
+            else:  # data empty
                 return data
         except Exception as ex:
             self._logger.exception(ex)
 
+    def _wait_for_class(self, class_name: str, timeout_s: int):
+        try:
+            element_present = EC.presence_of_element_located((By.CLASS_NAME, class_name))
+            WebDriverWait(self._driver, timeout_s).until(element_present)
+        except TimeoutException:
+            self._logger.error('{} did not load in {} seconds'.format(class_name, timeout_s))
 
-    def _parse_egged_rendered_data(self, rendered_html: HTML) -> List[LineData]:
+    def _parse_rendered_data(self) -> List[LineData]:
         data = []
         try:
-            a = rendered_html.find('.TableLines')
-            b = a[0].text.split('tr')
-            c = b[0].split('\n')
+            a = self._driver.find_element_by_class_name('TableLines')
+            b = a.text.split('\n')
 
-            data_in_threes = [c[x:x+3] for x in range(0, len(c), 3)]
+            data_in_threes = [b[x:x+3] for x in range(0, len(b), 3)]
             for (n, d, a) in data_in_threes:
                 line_num = int(n)
                 line_dest = d
-                line_arival = int(a.split(' ')[0])
+                if a == '↓ In station':
+                    line_arival = 0
+                else:
+                    line_arival = int(a.split(' ')[0])
 
                 l = LineData(line_num=line_num, line_destination=line_dest, arrivel_time=line_arival)
                 data.append(l)
@@ -90,6 +108,6 @@ if __name__ == '__main__':
     init_logging(logging.INFO)
     a = HomeBusAlerter()
     while(True):
-        d = a.get_data_from_bus_station_num(bus_station_num=2180, line_filter=[12])
+        d = a.get_data_from_bus_station_num(bus_station_num=43035, line_filter=[])
         logging.info(d)
         time.sleep(10)

@@ -11,7 +11,7 @@ from selenium.webdriver.support import expected_conditions as EC
 from selenium.webdriver.common.by import By
 import time
 from typing import List
-from pyvirtualdisplay import Display
+#from pyvirtualdisplay import Display
 
 #display = Display(visible=0, size=(480,320))
 #display.start()

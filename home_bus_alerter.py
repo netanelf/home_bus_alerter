@@ -4,13 +4,17 @@ import sys
 sys.path.append(os.getcwd())
 import datetime
 from selenium import webdriver
+from selenium.webdriver.firefox.options import Options
 from selenium.common.exceptions import TimeoutException
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
 from selenium.webdriver.common.by import By
 import time
 from typing import List
+from pyvirtualdisplay import Display
 
+#display = Display(visible=0, size=(480,320))
+#display.start()
 
 class LineData(object):
     def __init__(self, line_num: int, line_destination: str, arrivel_time: int):
@@ -25,7 +29,12 @@ class LineData(object):
 class HomeBusAlerter(object):
     def __init__(self):
         self._logger = logging.getLogger(self.__class__.__name__)
-        self._driver = webdriver.Firefox()
+        self._firefox_profile = webdriver.FirefoxProfile()
+        self._firefox_profile.set_preference('permissions.default.image', 2)
+        #self._firefox_options = Options()
+        #self._firefox_options.set_headless(headless=True)
+        self._driver = webdriver.Firefox(firefox_profile=self._firefox_profile)
+        #self._driver = webdriver.PhantomJS()
 
     def get_data_from_bus_station_num(self, bus_station_num: int, line_filter=[]):
         self._logger.info('trying to get data on station no: {}'.format(bus_station_num))
@@ -34,7 +43,7 @@ class HomeBusAlerter(object):
             self._driver.get(url)
         else:
             self._driver.refresh()
-        self._wait_for_class(class_name='TableLines', timeout_s=5)
+        self._wait_for_class(class_name='TableLines', timeout_s=20)
         time.sleep(1)  # additional
 
         data = self._parse_rendered_data()
@@ -107,7 +116,8 @@ def init_logging(level):
 if __name__ == '__main__':
     init_logging(logging.INFO)
     a = HomeBusAlerter()
-    while(True):
+    for i in range(5):
         d = a.get_data_from_bus_station_num(bus_station_num=43035, line_filter=[])
         logging.info(d)
         time.sleep(10)
+    #display.stop()

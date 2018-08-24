@@ -14,7 +14,7 @@ class LineData(object):
 
 class HomeBusAlerter(object):
     def __init__(self):
-        self._logger = logging.getLogger(self.__class__.__name__)
+        self._logger = logging.getLogger('{}.{}'.format(cfg.LOGGER_BASE_NAME, self.__class__.__name__))
         self._firefox_profile = webdriver.FirefoxProfile()
         self._firefox_profile.set_preference('permissions.default.image', 2)
         #self._firefox_options = Options()
@@ -82,6 +82,9 @@ class HomeBusAlerter(object):
 
         return data
 
+    def kill(self):
+        self._driver.quit()
+        self._logger.info('webdriver killed')
 
 
 def init_logging(level):

@@ -1,29 +1,15 @@
-import logging
-import os
-import sys
-sys.path.append(os.getcwd())
-import datetime
-from selenium import webdriver
-from selenium.webdriver.firefox.options import Options
-from selenium.common.exceptions import TimeoutException
-from selenium.webdriver.support.ui import WebDriverWait
-from selenium.webdriver.support import expected_conditions as EC
-from selenium.webdriver.common.by import By
-import time
-from typing import List
-#from pyvirtualdisplay import Display
+from __init__ import *
 
-#display = Display(visible=0, size=(480,320))
-#display.start()
 
 class LineData(object):
-    def __init__(self, line_num: int, line_destination: str, arrivel_time: int):
+    def __init__(self, line_num: int, line_destination: str, arrivel_time: int, station_num: int):
+        self.station_num = station_num
         self.line_num = line_num
         self.line_destination = line_destination
         self.arrivel_time = arrivel_time
 
     def __repr__(self):
-        return 'line: {}, destination: {}, arivel minutes: {}'.format(self.line_num, self.line_destination, self.arrivel_time)
+        return 'station: {}, line: {}, destination: {}, arivel minutes: {}'.format(self.station_num, self.line_num, self.line_destination, self.arrivel_time)
 
 
 class HomeBusAlerter(object):
@@ -36,7 +22,7 @@ class HomeBusAlerter(object):
         self._driver = webdriver.Firefox(firefox_profile=self._firefox_profile)
         #self._driver = webdriver.PhantomJS()
 
-    def get_data_from_bus_station_num(self, bus_station_num: int, line_filter=[]):
+    def get_data_from_bus_station_num(self, bus_station_num: int, line_filter=[]) -> List[LineData]:
         self._logger.info('trying to get data on station no: {}'.format(bus_station_num))
         url = 'https://bus.gov.il/?language=en#/realtime/1/0/2/{}'.format(bus_station_num)
         if self._driver.current_url != url:
@@ -46,7 +32,7 @@ class HomeBusAlerter(object):
         self._wait_for_class(class_name='TableLines', timeout_s=20)
         time.sleep(1)  # additional
 
-        data = self._parse_rendered_data()
+        data = self._parse_rendered_data(station_num=bus_station_num)
         try:
             if len(data) > 0:
                 if len(line_filter) > 0:
@@ -69,7 +55,7 @@ class HomeBusAlerter(object):
         except TimeoutException:
             self._logger.error('{} did not load in {} seconds'.format(class_name, timeout_s))
 
-    def _parse_rendered_data(self) -> List[LineData]:
+    def _parse_rendered_data(self, station_num: int) -> List[LineData]:
         data = []
         try:
             a = self._driver.find_element_by_class_name('TableLines')
@@ -84,7 +70,7 @@ class HomeBusAlerter(object):
                 else:
                     line_arival = int(a.split(' ')[0])
 
-                l = LineData(line_num=line_num, line_destination=line_dest, arrivel_time=line_arival)
+                l = LineData(station_num=station_num, line_num=line_num, line_destination=line_dest, arrivel_time=line_arival)
                 data.append(l)
 
             self._logger.debug('found data: {}'.format(data))
@@ -95,6 +81,7 @@ class HomeBusAlerter(object):
             self._logger.exception(ex)
 
         return data
+
 
 
 def init_logging(level):

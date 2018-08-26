@@ -2,14 +2,19 @@ from __init__ import *
 
 
 class LineData(object):
-    def __init__(self, line_num: int, line_destination: str, arrivel_time: int, station_num: int):
+    def __init__(self, line_num: int, line_destination: str, arrivel_time: int, station_num: int, creation_time: datetime, station_name: str=''):
         self.station_num = station_num
+        self.station_name = station_name
         self.line_num = line_num
         self.line_destination = line_destination
-        self.arrivel_time = arrivel_time
+        self.arrival_time = arrivel_time
+        self.creation_time = creation_time
 
     def __repr__(self):
-        return 'station: {}, line: {}, destination: {}, arivel minutes: {}'.format(self.station_num, self.line_num, self.line_destination, self.arrivel_time)
+        return 'station: {}, line: {}, destination: {}, arrival minutes: {}, creatin_time: {}'\
+            .format(
+                self.station_num, self.line_num, self.line_destination, self.arrival_time, self.creation_time
+            )
 
 
 class HomeBusAlerter(object):
@@ -22,17 +27,22 @@ class HomeBusAlerter(object):
         self._driver = webdriver.Firefox(firefox_profile=self._firefox_profile)
         #self._driver = webdriver.PhantomJS()
 
-    def get_data_from_bus_station_num(self, bus_station_num: int, line_filter=[]) -> List[LineData]:
+    def get_data_from_bus_station_num(self, bus_station_num: int, line_filter=[], bus_station_name: int='') -> List[LineData]:
         self._logger.info('trying to get data on station no: {}'.format(bus_station_num))
         url = 'https://bus.gov.il/?language=en#/realtime/1/0/2/{}'.format(bus_station_num)
-        if self._driver.current_url != url:
-            self._driver.get(url)
-        else:
-            self._driver.refresh()
-        self._wait_for_class(class_name='TableLines', timeout_s=20)
+        try:
+            if self._driver.current_url != url:
+                self._driver.get(url)
+            else:
+                self._driver.refresh()
+            self._wait_for_class(class_name='TableLines', timeout_s=20)
+        except Exception as ex: # have seen times that refresh/ wait finished with an exception
+            self._logger.exception(ex)
+            return []
+
         time.sleep(1)  # additional
 
-        data = self._parse_rendered_data(station_num=bus_station_num)
+        data = self._parse_rendered_data(station_num=bus_station_num, station_name=bus_station_name)
         try:
             if len(data) > 0:
                 if len(line_filter) > 0:
@@ -55,7 +65,7 @@ class HomeBusAlerter(object):
         except TimeoutException:
             self._logger.error('{} did not load in {} seconds'.format(class_name, timeout_s))
 
-    def _parse_rendered_data(self, station_num: int) -> List[LineData]:
+    def _parse_rendered_data(self, station_num: int, station_name: str='') -> List[LineData]:
         data = []
         try:
             a = self._driver.find_element_by_class_name('TableLines')
@@ -70,7 +80,7 @@ class HomeBusAlerter(object):
                 else:
                     line_arival = int(a.split(' ')[0])
 
-                l = LineData(station_num=station_num, line_num=line_num, line_destination=line_dest, arrivel_time=line_arival)
+                l = LineData(station_num=station_num, line_num=line_num, line_destination=line_dest, arrivel_time=line_arival, creation_time=datetime.now(), station_name=station_name)
                 data.append(l)
 
             self._logger.debug('found data: {}'.format(data))

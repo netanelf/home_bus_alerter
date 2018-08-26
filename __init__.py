@@ -13,7 +13,7 @@ from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
 from selenium.webdriver.common.by import By
 
-from typing import TYPE_CHECKING, List
+from typing import TYPE_CHECKING, List, Dict, Tuple
 from typing import List
 
 import config as cfg

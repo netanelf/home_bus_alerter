@@ -1,15 +1,14 @@
 
 
 GUI_SIZE = (480, 320)
-GUI_FONT_SIZE = 14
-GUI_FONT = "Arial Bold"
+GUI_FONT_SIZE = 12
+GUI_FONT = "Arial"
 TIME_FORMAT = '%H:%M:%S'
+TIME_WAIT_BETWEEN_REFRESH_SEC = 10
 
 LOGGER_BASE_NAME = 'bus'
 
 STATIONS_LINES_DICTIONARY = \
     {
-        2180: (10,),
-        43035: (1,),
-        47531: (),
+        2180: {'name': 'Pat\nYehuda\nHaNassi', 'filter': (12, 22)},
     }

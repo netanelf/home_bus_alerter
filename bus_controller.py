@@ -8,6 +8,8 @@ class BusController(object):
         self._bus_view = BusView(master=self._root, controller=self)
         self._bus_data = HomeBusAlerter()
         self._is_running = False
+        self._current_lines_data: Dict[Tuple[int, int], LineData] = {}
+        self._current_lines_data_lock = threading.RLock()
         self._logger.info('finished init')
 
     def run(self):
@@ -18,6 +20,10 @@ class BusController(object):
 
         self.tt_thread = threading.Thread(target=self.update_time_tables_thread)
         self.tt_thread.start()
+
+        self.lu_thread = threading.Thread(target=self.update_last_updated_sec_thread)
+        self.lu_thread.start()
+
         self._root.mainloop()
         self._logger.info('main loop done')
 
@@ -29,10 +35,25 @@ class BusController(object):
 
     def update_time_tables_thread(self):
         while self._is_running:
-            for station_num, line_filter in cfg.STATIONS_LINES_DICTIONARY.items():
-                request_ts = datetime.now()
-                d = self._bus_data.get_data_from_bus_station_num(bus_station_num=station_num, line_filter=line_filter)
-                self._bus_view.update_time_tables(data=d, time_stamp=request_ts)
+            for station_num, data in cfg.STATIONS_LINES_DICTIONARY.items():
+                line_filter = data['filter']
+                d = self._bus_data.get_data_from_bus_station_num(bus_station_num=station_num, line_filter=line_filter, bus_station_name=data['name'])
+                with self._current_lines_data_lock:
+                    for l_d in d:
+                        self._current_lines_data[(l_d.station_num, l_d.line_num)] = l_d
+                self._bus_view.update_time_tables(data=d)
+            time.sleep(cfg.TIME_WAIT_BETWEEN_REFRESH_SEC)
+
+    def update_last_updated_sec_thread(self):
+        while self._is_running:
+            with self._current_lines_data_lock:
+                for (station_num, bus_num), data in self._current_lines_data.items():
+                    last_updated = int((datetime.now() - data.creation_time).total_seconds())
+                    if last_updated < 60:
+                        self._bus_view.update_last_updated_time(station_num=station_num, bus_num=bus_num, new_last_updated_time_sec=last_updated)
+                    else:
+                        self._bus_view.update_last_updated_time(station_num=station_num, bus_num=bus_num,
+                                                                new_last_updated_time_sec='outdated')
             time.sleep(1)
 
     def kill(self):

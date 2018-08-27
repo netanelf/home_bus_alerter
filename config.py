@@ -10,5 +10,6 @@ LOGGER_BASE_NAME = 'bus'
 
 STATIONS_LINES_DICTIONARY = \
     {
-        2180: {'name': 'Pat\nYehuda\nHaNassi', 'filter': (12, 22)},
+        2180: {'name': 'Pat\nYehuda\nHaNassi', 'filter': (12,)},
+        2181: {'name': 'Pat\nYehuda\nHanassi2', 'filter': (22,)}
     }

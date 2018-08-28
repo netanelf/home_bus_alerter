@@ -26,10 +26,14 @@ class HomeBusAlerter(object):
         #self._firefox_options.set_headless(headless=True)
         self._driver = webdriver.Firefox(firefox_profile=self._firefox_profile)
         #self._driver = webdriver.PhantomJS()
+        self._unsuccessful_reads_counter = 0
 
     def get_data_from_bus_station_num(self, bus_station_num: int, line_filter=[], bus_station_name: int='') -> List[LineData]:
         self._logger.info('trying to get data on station no: {}'.format(bus_station_num))
         url = 'https://bus.gov.il/?language=en#/realtime/1/0/2/{}'.format(bus_station_num)
+        if self._unsuccessful_reads_counter > cfg.MAX_UNSUCCESSFUL_READS__CONS:
+            self._restart_driver()
+
         try:
             if self._driver.current_url != url:
                 self._driver.get(url)
@@ -38,6 +42,7 @@ class HomeBusAlerter(object):
             self._wait_for_class(class_name='TableLines', timeout_s=20)
         except Exception as ex: # have seen times that refresh/ wait finished with an exception
             self._logger.exception(ex)
+            self._unsuccessful_reads_counter += 1
             return []
 
         time.sleep(1)  # additional
@@ -45,6 +50,7 @@ class HomeBusAlerter(object):
         data = self._parse_rendered_data(station_num=bus_station_num, station_name=bus_station_name)
         try:
             if len(data) > 0:
+                self._unsuccessful_reads_counter = 0
                 if len(line_filter) > 0:
                     filtered_data = []
                     for d in data:
@@ -54,9 +60,11 @@ class HomeBusAlerter(object):
                 else:
                     return data
             else:  # data empty
+                self._unsuccessful_reads_counter += 1
                 return data
         except Exception as ex:
             self._logger.exception(ex)
+            self._unsuccessful_reads_counter += 1
 
     def _wait_for_class(self, class_name: str, timeout_s: int):
         try:
@@ -95,6 +103,14 @@ class HomeBusAlerter(object):
     def kill(self):
         self._driver.quit()
         self._logger.info('webdriver killed')
+
+    def _restart_driver(self):
+        self._logger.warning('restarting driver, unsuccessful_reads_counter: {}'.format(self._unsuccessful_reads_counter))
+        self._driver.quit()
+        time.sleep(5)
+        self._driver = webdriver.Firefox(firefox_profile=self._firefox_profile)
+        self._logger.warning('new driver loaded')
+
 
 
 def init_logging(level):

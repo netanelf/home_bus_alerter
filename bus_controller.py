@@ -67,16 +67,16 @@ class BusController(object):
 def init_logging(level):
     root_logger = logging.getLogger()
     root_logger.setLevel(level=logging.INFO)
-    #file_name = os.path.join('logs', 'BulboardServer_{}'.format(datetime.now().strftime('%d_%m_%y__%H_%M_%S')))
-    #file_handler = DiskSpaceRotatingFileHandler(folder_max_size=10E6, filename=file_name, maxBytes=1E6, backupCount=10000)
+    file_name = os.path.join('logs', 'BusAlerter_{}'.format(datetime.now().strftime('%d_%m_%y__%H_%M_%S')))
+    file_handler = DiskSpaceRotatingFileHandler(folder_max_size=10E6, filename=file_name, maxBytes=1E6, backupCount=10000)
     formatter = logging.Formatter(fmt=u'%(asctime)s:%(name)s:%(levelname)s:%(message)s')
-    #file_handler.setFormatter(formatter)
+    file_handler.setFormatter(formatter)
 
     console_handler = logging.StreamHandler()
     console_handler.setFormatter(formatter)
 
     logging._defaultFormatter = logging.Formatter(u"%(message)s")  # so utf8 messages will not crash the logging
-    #root_logger.addHandler(hdlr=file_handler)
+    root_logger.addHandler(hdlr=file_handler)
     root_logger.addHandler(hdlr=console_handler)
 
     mylogger = logging.getLogger(cfg.LOGGER_BASE_NAME)

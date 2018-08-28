@@ -20,13 +20,19 @@ class LineData(object):
 class HomeBusAlerter(object):
     def __init__(self):
         self._logger = logging.getLogger('{}.{}'.format(cfg.LOGGER_BASE_NAME, self.__class__.__name__))
-        self._firefox_profile = webdriver.FirefoxProfile()
-        self._firefox_profile.set_preference('permissions.default.image', 2)
-        #self._firefox_options = Options()
-        #self._firefox_options.set_headless(headless=True)
-        self._driver = webdriver.Firefox(firefox_profile=self._firefox_profile)
+        self._driver = self._open_and_configure_webdriver()
         #self._driver = webdriver.PhantomJS()
         self._unsuccessful_reads_counter = 0
+
+    @staticmethod
+    def _open_and_configure_webdriver():
+        firefox_profile = webdriver.FirefoxProfile()
+        firefox_profile.set_preference('permissions.default.image', 2)
+        firefox_profile.set_preference("dom.max_chrome_script_run_time", 0)
+        firefox_profile.set_preference("dom.max_script_run_time", 0)
+
+        d = webdriver.Firefox(firefox_profile=firefox_profile)
+        return d
 
     def get_data_from_bus_station_num(self, bus_station_num: int, line_filter=[], bus_station_name: int='') -> List[LineData]:
         self._logger.info('trying to get data on station no: {}'.format(bus_station_num))
@@ -36,11 +42,14 @@ class HomeBusAlerter(object):
 
         try:
             if self._driver.current_url != url:
+                self._logger.debug('setting url to: {}'.format(url))
                 self._driver.get(url)
             else:
+                self._logger.debug('refreshing page ({})'.format(url))
                 self._driver.refresh()
+            self._logger.debug('waiting for "TableLines" to load')
             self._wait_for_class(class_name='TableLines', timeout_s=20)
-        except Exception as ex: # have seen times that refresh/ wait finished with an exception
+        except Exception as ex:  # have seen times that refresh/ wait finished with an exception
             self._logger.exception(ex)
             self._unsuccessful_reads_counter += 1
             return []
@@ -74,6 +83,7 @@ class HomeBusAlerter(object):
             self._logger.error('{} did not load in {} seconds'.format(class_name, timeout_s))
 
     def _parse_rendered_data(self, station_num: int, station_name: str='') -> List[LineData]:
+        self._logger.debug('in _parse_rendered_data')
         data = []
         try:
             a = self._driver.find_element_by_class_name('TableLines')
@@ -91,7 +101,7 @@ class HomeBusAlerter(object):
                 l = LineData(station_num=station_num, line_num=line_num, line_destination=line_dest, arrivel_time=line_arival, creation_time=datetime.now(), station_name=station_name)
                 data.append(l)
 
-            self._logger.debug('found data: {}'.format(data))
+            self._logger.debug('found data: {}...'.format(data.__repr__()[:60]))
         except ValueError as ex:
             self._logger.error(data_in_threes)
             self._logger.exception(ex)
@@ -108,7 +118,7 @@ class HomeBusAlerter(object):
         self._logger.warning('restarting driver, unsuccessful_reads_counter: {}'.format(self._unsuccessful_reads_counter))
         self._driver.quit()
         time.sleep(5)
-        self._driver = webdriver.Firefox(firefox_profile=self._firefox_profile)
+        self._driver = self._open_and_configure_webdriver()
         self._logger.warning('new driver loaded')
 
 
